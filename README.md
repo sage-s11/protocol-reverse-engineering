@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # protocol-reverse-enginee=======
 # Protocol Reverse Engineering Engine (Java)
 
