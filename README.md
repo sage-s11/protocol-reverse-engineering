@@ -1,4 +1,4 @@
-# protocol-reverse-enginee=======
+# protocol-reverse-engine
 # Protocol Reverse Engineering Engine (Java)
 
 > Feed it a `.pcap` of any binary protocol — it statistically infers message structure,
