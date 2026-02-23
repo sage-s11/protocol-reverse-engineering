@@ -1,0 +1,311 @@
+
+
+
+
+
+<!DOCTYPE html>
+<html class="gl-system ui-neutral with-top-bar with-header application-chrome page-with-panels with-gl-container-queries " lang="en">
+<head prefix="og: http://ogp.me/ns#">
+<meta charset="utf-8">
+<meta content="IE=edge" http-equiv="X-UA-Compatible">
+<meta content="width=device-width, initial-scale=1" name="viewport">
+<title>Wiki · Wireshark Foundation / Wireshark · GitLab</title>
+<script nonce="ELFRRCe1GQFmaostaqBGpA==">
+//<![CDATA[
+window.gon={};gon.math_rendering_limits_enabled=true;gon.features={"allowIframesInMarkdown":false,"wikiImmersiveEditor":false,"wikiFloatingSidebarToggle":true,"glqlWorkItems":true,"glqlLoadOnClick":false};
+//]]>
+</script>
+
+<script nonce="ELFRRCe1GQFmaostaqBGpA==">
+//<![CDATA[
+const root = document.documentElement;
+if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+  root.classList.add('gl-dark');
+}
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+  if (e.matches) {
+    root.classList.add('gl-dark');
+  } else {
+    root.classList.remove('gl-dark');
+  }
+});
+
+//]]>
+</script>
+
+
+
+
+<meta content="light dark" name="color-scheme">
+<link rel="stylesheet" href="/assets/application-1349ac240a7bed952cb659d98605c1871dea197ffc667078e31b5fcee6c13c6e.css" media="(prefers-color-scheme: light)" />
+<link rel="stylesheet" href="/assets/application_dark-659ad94639b92b08096105df710ff766b6263aff70d4efdc77ab1de130acfb99.css" media="(prefers-color-scheme: dark)" />
+<link rel="stylesheet" href="/assets/page_bundles/wiki-1e72cae795d1704fdb51094de1253a8abda4b1f8174dd221fed660f3b1baa823.css" /><link rel="stylesheet" href="/assets/page_bundles/commit_description-9e7efe20f0cef17d0606edabfad0418e9eb224aaeaa2dae32c817060fa60abcc.css" /><link rel="stylesheet" href="/assets/page_bundles/work_items-af321897c3b1ae7c1f6f0cb993681211b837df7ec8e5ff59e3795fd08ab83a13.css" /><link rel="stylesheet" href="/assets/page_bundles/notes_shared-8f7a9513332533cc4a53b3be3d16e69570e82bc87b3f8913578eaeb0dce57e21.css" />
+<link rel="stylesheet" href="/assets/tailwind_cqs-f5aa897dcafde3bdb6ea1b50c2aaad9df22f117aaf0d9b2e0eb299cbbae9f343.css" />
+
+
+<link rel="stylesheet" href="/assets/fonts-deb7ad1d55ca77c0172d8538d53442af63604ff490c74acc2859db295c125bdb.css" />
+<link rel="stylesheet" href="/assets/highlight/themes/white-9c3096bebbc271536c91d4e96afdef34cf54f198accca96d32008405a3a398da.css" media="(prefers-color-scheme: light)" />
+<link rel="stylesheet" href="/assets/highlight/themes/dark-bab508e186c8119f0cfb965d3a8a74c6ee2b10c5d2cf129a41c0bc522b98655d.css" media="(prefers-color-scheme: dark)" />
+
+<script src="/assets/webpack/runtime.25ea6058.bundle.js" defer="defer" nonce="ELFRRCe1GQFmaostaqBGpA=="></script>
+<script src="/assets/webpack/main.d0f7cdd5.chunk.js" defer="defer" nonce="ELFRRCe1GQFmaostaqBGpA=="></script>
+<script src="/assets/webpack/tracker.f99708a3.chunk.js" defer="defer" nonce="ELFRRCe1GQFmaostaqBGpA=="></script>
+<script src="/assets/webpack/analytics.73ad904f.chunk.js" defer="defer" nonce="ELFRRCe1GQFmaostaqBGpA=="></script>
+<script nonce="ELFRRCe1GQFmaostaqBGpA==">
+//<![CDATA[
+window.snowplowOptions = {"namespace":"gl","hostname":"snowplowprd.trx.gitlab.net","cookieDomain":".gitlab.com","appId":"gitlab","formTracking":true,"linkClickTracking":true};
+gl = window.gl || {};
+gl.snowplowStandardContext = {"schema":"iglu:com.gitlab/gitlab_standard/jsonschema/1-1-7","data":{"environment":"production","source":"gitlab-rails","correlation_id":"9d1ea30d07470789-ATL","extra":{},"user_id":null,"global_user_id":null,"user_type":null,"is_gitlab_team_member":null,"namespace_id":3421856,"ultimate_parent_namespace_id":3421856,"project_id":7898047,"feature_enabled_by_namespace_ids":null,"realm":"saas","deployment_type":".com","context_generated_at":"2026-02-22T12:55:18.237Z"}};
+gl.snowplowPseudonymizedPageUrl = "https://gitlab.com/namespace3421856/project7898047/-/wikis/uploads/__moin_import__/attachments/SampleCaptures/http.cap";
+gl.maskedDefaultReferrerUrl = null;
+gl.ga4MeasurementId = 'G-ENFH3X7M5Y';
+gl.duoEvents = ["ai_question_category","perform_completion_worker","process_gitlab_duo_question","agent_platform_session_created","agent_platform_session_dropped","agent_platform_session_finished","agent_platform_session_resumed","agent_platform_session_started","agent_platform_session_stopped","ai_response_time","ci_repository_xray_artifact_created","cleanup_stuck_agent_platform_session","click_dap_trial_or_paid_empty_state_agent","click_dap_trial_or_paid_empty_state_explore_agents_link","click_dap_trial_or_paid_empty_state_prompt","click_delete_ai_catalog_item_button","click_disable_ai_catalog_item_button","click_duo_agentic_not_available_empty_state_learn_more","click_duo_agentic_not_available_empty_state_start_trial","click_duplicate_ai_catalog_item_button","click_enable_ai_catalog_item_button","click_purchase_seats_button_group_duo_pro_home_page","close_vulnerability_resolution_merge_request","code_suggestion_accepted_in_ide","code_suggestion_rejected_in_ide","code_suggestion_shown_in_ide","code_suggestions_connection_details_rate_limit_exceeded","code_suggestions_direct_access_rate_limit_exceeded","code_suggestions_rate_limit_exceeded","create_ai_catalog_item","create_ai_catalog_item_consumer","create_ai_self_hosted_model","create_vulnerability_resolution_merge_request","default_answer","delete_ai_catalog_item","delete_ai_catalog_item_consumer","delete_ai_self_hosted_model","detected_high_comment_temperature","detected_repeated_high_comment_temperature","dismiss_sast_vulnerability_false_positive_analysis","encounter_duo_code_review_error_during_review","error_answer","excluded_files_from_duo_code_review","execute_llm_method","filter_ai_fp","find_no_issues_duo_code_review_after_review","find_nothing_to_review_duo_code_review_on_mr","finish_duo_workflow_execution","finish_mcp_tool_call","forced_high_temperature_commenting","i_quickactions_q","include_repository_xray_data_into_code_generation_prompt","mention_gitlabduo_in_mr_comment","merge_vulnerability_resolution_merge_request","post_comment_duo_code_review_on_diff","process_gitlab_duo_slash_command","react_thumbs_down_on_duo_code_review_comment","react_thumbs_up_on_duo_code_review_comment","reported_sast_vulnerability_false_positive_analysis","request_ask_help","request_duo_chat_response","request_review_duo_code_review_on_mr_by_author","request_review_duo_code_review_on_mr_by_non_author","requested_comment_temperature","retry_duo_workflow_execution","start_duo_workflow_execution","start_mcp_tool_call","submit_gitlab_duo_question","tokens_per_embedding","tokens_per_user_request_prompt","tokens_per_user_request_response","trigger_ai_catalog_item","trigger_sast_vulnerability_fp_detection_workflow","trigger_sast_vulnerability_resolution_workflow","trigger_secret_detection_vulnerability_fp_detection_workflow","troubleshoot_job","update_ai_catalog_item","update_ai_catalog_item_consumer","update_ai_self_hosted_model","update_model_selection_feature","update_self_hosted_ai_feature_to_vendored_model","view_ai_catalog_item","view_ai_catalog_item_index","view_ai_catalog_project_managed","view_dap_trial_or_paid_empty_state","view_duo_agentic_not_available_empty_state"];
+gl.onlySendDuoEvents = false;
+
+
+//]]>
+</script>
+<link rel="preload" href="/assets/application-1349ac240a7bed952cb659d98605c1871dea197ffc667078e31b5fcee6c13c6e.css" as="style" type="text/css" nonce="8UAlnztZwj5bsDNxQrL+0A==">
+<link rel="preload" href="/assets/highlight/themes/white-9c3096bebbc271536c91d4e96afdef34cf54f198accca96d32008405a3a398da.css" as="style" type="text/css" nonce="8UAlnztZwj5bsDNxQrL+0A==">
+<link crossorigin="" href="https://snowplowprd.trx.gitlab.net" rel="preconnect">
+<link as="font" crossorigin="" href="/assets/gitlab-sans/GitLabSans-9892dc17af892e03de41625c0ee325117a3b8ee4ba6005f3a3eac68510030aed.woff2" rel="preload">
+<link as="font" crossorigin="" href="/assets/gitlab-sans/GitLabSans-Italic-f96f17332d67b21ada2dfba5f0c0e1d5801eab99330472057bf18edd93d4ccf7.woff2" rel="preload">
+<link as="font" crossorigin="" href="/assets/gitlab-mono/GitLabMono-29c2152dac8739499dd0fe5cd37a486ebcc7d4798c9b6d3aeab65b3172375b05.woff2" rel="preload">
+<link as="font" crossorigin="" href="/assets/gitlab-mono/GitLabMono-Italic-af36701a2188df32a9dcea12e0424c380019698d4f76da9ad8ea2fd59432cf83.woff2" rel="preload">
+<link rel="preload" href="/assets/fonts-deb7ad1d55ca77c0172d8538d53442af63604ff490c74acc2859db295c125bdb.css" as="style" type="text/css" nonce="8UAlnztZwj5bsDNxQrL+0A==">
+
+
+
+<script src="/assets/webpack/sentry.59a5ee8a.chunk.js" defer="defer" nonce="ELFRRCe1GQFmaostaqBGpA=="></script>
+
+<script src="/assets/webpack/commons-pages.search.show-super_sidebar.859fa515.chunk.js" defer="defer" nonce="ELFRRCe1GQFmaostaqBGpA=="></script>
+<script src="/assets/webpack/super_sidebar.f305d4b0.chunk.js" defer="defer" nonce="ELFRRCe1GQFmaostaqBGpA=="></script>
+<script src="/assets/webpack/prosemirror.18b146ef.chunk.js" defer="defer" nonce="ELFRRCe1GQFmaostaqBGpA=="></script>
+<script src="/assets/webpack/commons-pages.groups-pages.groups.achievements-pages.groups.activity-pages.groups.analytics.ci_cd_an-6751a3a9.e7669245.chunk.js" defer="defer" nonce="ELFRRCe1GQFmaostaqBGpA=="></script>
+<script src="/assets/webpack/d44db2dd.3b3f20e4.chunk.js" defer="defer" nonce="ELFRRCe1GQFmaostaqBGpA=="></script>
+<script src="/assets/webpack/commons-pages.admin.topics.edit-pages.admin.topics.new-pages.groups.comment_templates-pages.groups.e-62d8c87c.d85f4a7d.chunk.js" defer="defer" nonce="ELFRRCe1GQFmaostaqBGpA=="></script>
+<script src="/assets/webpack/540c13ba.5a50b735.chunk.js" defer="defer" nonce="ELFRRCe1GQFmaostaqBGpA=="></script>
+<script src="/assets/webpack/commons-pages.admin.topics.edit-pages.admin.topics.new-pages.groups.comment_templates-pages.groups.e-27598f61.6f8b3910.chunk.js" defer="defer" nonce="ELFRRCe1GQFmaostaqBGpA=="></script>
+<script src="/assets/webpack/commons-pages.admin.topics.edit-pages.admin.topics.new-pages.groups.comment_templates-pages.groups.e-39fd14c8.a094e7f9.chunk.js" defer="defer" nonce="ELFRRCe1GQFmaostaqBGpA=="></script>
+<script src="/assets/webpack/commons-pages.admin.topics.edit-pages.admin.topics.new-pages.groups.comment_templates-pages.groups.e-9ce223ed.e0a84a80.chunk.js" defer="defer" nonce="ELFRRCe1GQFmaostaqBGpA=="></script>
+<script src="/assets/webpack/cb024f01.6df5209b.chunk.js" defer="defer" nonce="ELFRRCe1GQFmaostaqBGpA=="></script>
+<script src="/assets/webpack/commons-pages.groups.wikis-pages.groups.wikis.diff-pages.groups.wikis.git_access-pages.groups.wikis.-3214ce60.9651ea43.chunk.js" defer="defer" nonce="ELFRRCe1GQFmaostaqBGpA=="></script>
+<script src="/assets/webpack/pages.projects.wikis.show.a0f927c9.chunk.js" defer="defer" nonce="ELFRRCe1GQFmaostaqBGpA=="></script>
+
+<meta content="object" property="og:type">
+<meta content="GitLab" property="og:site_name">
+<meta content="Wiki · Wireshark Foundation / Wireshark · GitLab" property="og:title">
+<meta content="Wireshark&#39;s official code repository. You can keep the releases coming by donating at https://wiresharkfoundation.org/donate/." property="og:description">
+<meta content="https://gitlab.com/uploads/-/system/project/avatar/7898047/wsicon256.png" property="og:image">
+<meta content="64" property="og:image:width">
+<meta content="64" property="og:image:height">
+<meta content="https://gitlab.com/wireshark/wireshark/-/wikis/uploads/__moin_import__/attachments/SampleCaptures/http.cap" property="og:url">
+<meta content="summary" property="twitter:card">
+<meta content="Wiki · Wireshark Foundation / Wireshark · GitLab" property="twitter:title">
+<meta content="Wireshark&#39;s official code repository. You can keep the releases coming by donating at https://wiresharkfoundation.org/donate/." property="twitter:description">
+<meta content="https://gitlab.com/uploads/-/system/project/avatar/7898047/wsicon256.png" property="twitter:image">
+
+<meta name="csrf-param" content="authenticity_token" />
+<meta name="csrf-token" content="j2WgqWpvJ_MXOWxJwYuwMwUu2H5Q-nDDto8ioxzJzO7MJ8olyOXQRuy8Ul17IwtSQeeMPJ8cQpg86pefMWdsHQ" />
+<meta name="csp-nonce" content="ELFRRCe1GQFmaostaqBGpA==" />
+<meta name="action-cable-url" content="/-/cable" />
+<link href="/-/manifest.json" rel="manifest">
+<link rel="icon" type="image/png" href="/assets/favicon-72a2cad5025aa931d6ea56c3201d1f18e68a8cd39788c7c80d5b2b82aa5143ef.png" id="favicon" data-original-href="/assets/favicon-72a2cad5025aa931d6ea56c3201d1f18e68a8cd39788c7c80d5b2b82aa5143ef.png" />
+<link rel="apple-touch-icon" type="image/x-icon" href="/assets/apple-touch-icon-b049d4bc0dd9626f31db825d61880737befc7835982586d015bded10b4435460.png" />
+<link href="/search/opensearch.xml" rel="search" title="Search GitLab" type="application/opensearchdescription+xml">
+
+
+
+
+<meta content="Wireshark&#39;s official code repository. You can keep the releases coming by donating at https://wiresharkfoundation.org/donate/." name="description">
+<meta content="#F1F0F6" media="(prefers-color-scheme: light)" name="theme-color">
+<meta content="#232128" media="(prefers-color-scheme: dark)" name="theme-color">
+</head>
+
+<body class="tab-width-8 gl-browser-generic gl-platform-other" data-group="wireshark" data-group-full-path="wireshark" data-namespace-id="3421856" data-page="projects:wikis:show" data-page-type-id="uploads/__moin_import__/attachments/SampleCaptures/http.cap" data-project="wireshark" data-project-full-path="wireshark/wireshark" data-project-id="7898047" data-project-studio-enabled="true">
+<div id="js-tooltips-container"></div>
+<script nonce="ELFRRCe1GQFmaostaqBGpA==">
+//<![CDATA[
+gl = window.gl || {};
+gl.GfmAutoComplete = gl.GfmAutoComplete || {};
+gl.GfmAutoComplete.dataSources = {"epics":"/wireshark/wireshark/-/autocomplete_sources/epics","iterations":"/wireshark/wireshark/-/autocomplete_sources/iterations","vulnerabilities":"/wireshark/wireshark/-/autocomplete_sources/vulnerabilities","members":"/wireshark/wireshark/-/autocomplete_sources/members?type=Wiki\u0026type_id=uploads%2F__moin_import__%2Fattachments%2FSampleCaptures%2Fhttp.cap","issues":"/wireshark/wireshark/-/autocomplete_sources/issues","mergeRequests":"/wireshark/wireshark/-/autocomplete_sources/merge_requests","labels":"/wireshark/wireshark/-/autocomplete_sources/labels?type=Wiki\u0026type_id=uploads%2F__moin_import__%2Fattachments%2FSampleCaptures%2Fhttp.cap","milestones":"/wireshark/wireshark/-/autocomplete_sources/milestones","commands":"/wireshark/wireshark/-/autocomplete_sources/commands?type=Wiki\u0026type_id=uploads%2F__moin_import__%2Fattachments%2FSampleCaptures%2Fhttp.cap","snippets":"/wireshark/wireshark/-/autocomplete_sources/snippets","contacts":"/wireshark/wireshark/-/autocomplete_sources/contacts?type=Wiki\u0026type_id=uploads%2F__moin_import__%2Fattachments%2FSampleCaptures%2Fhttp.cap","wikis":"/wireshark/wireshark/-/autocomplete_sources/wikis"};
+
+
+//]]>
+</script>
+<script nonce="ELFRRCe1GQFmaostaqBGpA==">
+//<![CDATA[
+gl = window.gl || {};
+gl.client = {"isGeneric":true,"isOther":true};
+
+
+//]]>
+</script>
+
+
+<header class="super-topbar js-super-topbar"></header>
+<div class="layout-page js-page-layout page-gutter has-wiki-sidebar page-with-super-sidebar">
+<script nonce="ELFRRCe1GQFmaostaqBGpA==">
+//<![CDATA[
+const outer = document.createElement('div');
+outer.style.visibility = 'hidden';
+outer.style.overflow = 'scroll';
+document.body.appendChild(outer);
+const inner = document.createElement('div');
+outer.appendChild(inner);
+const scrollbarWidth = outer.offsetWidth - inner.offsetWidth;
+outer.parentNode.removeChild(outer);
+document.documentElement.style.setProperty('--scrollbar-width', `${scrollbarWidth}px`);
+
+//]]>
+</script><aside class="js-super-sidebar super-sidebar super-sidebar-loading" data-command-palette="{&quot;project_files_url&quot;:&quot;/wireshark/wireshark/-/files/master?format=json&quot;,&quot;project_blob_url&quot;:&quot;/wireshark/wireshark/-/blob/master&quot;}" data-is-saas="true" data-root-path="/" data-sidebar="{&quot;whats_new_most_recent_release_items_count&quot;:5,&quot;whats_new_version_digest&quot;:&quot;0ac326686f62e06176321c58953c4eb0fed6c7610bdef09b71c7e8c36424daac&quot;,&quot;whats_new_read_articles&quot;:[],&quot;whats_new_mark_as_read_path&quot;:&quot;/-/whats_new/mark_as_read&quot;,&quot;is_logged_in&quot;:false,&quot;compare_plans_url&quot;:&quot;https://about.gitlab.com/pricing&quot;,&quot;context_switcher_links&quot;:[{&quot;title&quot;:&quot;Explore&quot;,&quot;link&quot;:&quot;/explore&quot;,&quot;icon&quot;:&quot;compass&quot;}],&quot;current_menu_items&quot;:[{&quot;id&quot;:&quot;project_overview&quot;,&quot;title&quot;:&quot;Wireshark&quot;,&quot;avatar&quot;:&quot;/uploads/-/system/project/avatar/7898047/wsicon256.png&quot;,&quot;entity_id&quot;:7898047,&quot;link&quot;:&quot;/wireshark/wireshark&quot;,&quot;link_classes&quot;:&quot;shortcuts-project&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;manage_menu&quot;,&quot;title&quot;:&quot;Manage&quot;,&quot;icon&quot;:&quot;users&quot;,&quot;avatar_shape&quot;:&quot;rect&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/activity&quot;,&quot;is_active&quot;:false,&quot;items&quot;:[{&quot;id&quot;:&quot;activity&quot;,&quot;title&quot;:&quot;Activity&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/activity&quot;,&quot;link_classes&quot;:&quot;shortcuts-project-activity&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;members&quot;,&quot;title&quot;:&quot;Members&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/project_members&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;labels&quot;,&quot;title&quot;:&quot;Labels&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/labels&quot;,&quot;is_active&quot;:false}],&quot;separated&quot;:false},{&quot;id&quot;:&quot;plan_menu&quot;,&quot;title&quot;:&quot;Plan&quot;,&quot;icon&quot;:&quot;planning&quot;,&quot;avatar_shape&quot;:&quot;rect&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/issues&quot;,&quot;is_active&quot;:true,&quot;items&quot;:[{&quot;id&quot;:&quot;project_issue_list&quot;,&quot;title&quot;:&quot;Issues&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/issues&quot;,&quot;link_classes&quot;:&quot;shortcuts-issues has-sub-items&quot;,&quot;pill_count_field&quot;:&quot;openIssuesCount&quot;,&quot;pill_count_dynamic&quot;:false,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;boards&quot;,&quot;title&quot;:&quot;Issue boards&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/boards&quot;,&quot;link_classes&quot;:&quot;shortcuts-issue-boards&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;milestones&quot;,&quot;title&quot;:&quot;Milestones&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/milestones&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;iterations&quot;,&quot;title&quot;:&quot;Iterations&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/cadences&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;project_wiki&quot;,&quot;title&quot;:&quot;Wiki&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/wikis/home&quot;,&quot;link_classes&quot;:&quot;shortcuts-wiki&quot;,&quot;is_active&quot;:true},{&quot;id&quot;:&quot;requirements&quot;,&quot;title&quot;:&quot;Requirements&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/requirements_management/requirements&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;external_wiki&quot;,&quot;title&quot;:&quot;External wiki&quot;,&quot;link&quot;:&quot;https://wiki.wireshark.org/&quot;,&quot;link_classes&quot;:&quot;shortcuts-external_wiki&quot;,&quot;is_active&quot;:false}],&quot;separated&quot;:false},{&quot;id&quot;:&quot;code_menu&quot;,&quot;title&quot;:&quot;Code&quot;,&quot;icon&quot;:&quot;code&quot;,&quot;avatar_shape&quot;:&quot;rect&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/merge_requests&quot;,&quot;is_active&quot;:false,&quot;items&quot;:[{&quot;id&quot;:&quot;project_merge_request_list&quot;,&quot;title&quot;:&quot;Merge requests&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/merge_requests&quot;,&quot;link_classes&quot;:&quot;shortcuts-merge_requests&quot;,&quot;pill_count_field&quot;:&quot;openMergeRequestsCount&quot;,&quot;pill_count_dynamic&quot;:false,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;files&quot;,&quot;title&quot;:&quot;Repository&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/tree/master&quot;,&quot;link_classes&quot;:&quot;shortcuts-tree&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;branches&quot;,&quot;title&quot;:&quot;Branches&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/branches&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;commits&quot;,&quot;title&quot;:&quot;Commits&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/commits/master?ref_type=heads&quot;,&quot;link_classes&quot;:&quot;shortcuts-commits&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;tags&quot;,&quot;title&quot;:&quot;Tags&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/tags&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;graphs&quot;,&quot;title&quot;:&quot;Repository graph&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/network/master?ref_type=heads&quot;,&quot;link_classes&quot;:&quot;shortcuts-network&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;compare&quot;,&quot;title&quot;:&quot;Compare revisions&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/compare?from=master\u0026to=master&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;project_snippets&quot;,&quot;title&quot;:&quot;Snippets&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/snippets&quot;,&quot;link_classes&quot;:&quot;shortcuts-snippets&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;file_locks&quot;,&quot;title&quot;:&quot;Locked files&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/path_locks&quot;,&quot;is_active&quot;:false}],&quot;separated&quot;:false},{&quot;id&quot;:&quot;build_menu&quot;,&quot;title&quot;:&quot;Build&quot;,&quot;icon&quot;:&quot;rocket&quot;,&quot;avatar_shape&quot;:&quot;rect&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/pipelines&quot;,&quot;is_active&quot;:false,&quot;items&quot;:[{&quot;id&quot;:&quot;pipelines&quot;,&quot;title&quot;:&quot;Pipelines&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/pipelines&quot;,&quot;link_classes&quot;:&quot;shortcuts-pipelines&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;jobs&quot;,&quot;title&quot;:&quot;Jobs&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/jobs&quot;,&quot;link_classes&quot;:&quot;shortcuts-builds&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;pipeline_schedules&quot;,&quot;title&quot;:&quot;Pipeline schedules&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/pipeline_schedules&quot;,&quot;link_classes&quot;:&quot;shortcuts-builds&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;test_cases&quot;,&quot;title&quot;:&quot;Test cases&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/quality/test_cases&quot;,&quot;link_classes&quot;:&quot;shortcuts-test-cases&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;artifacts&quot;,&quot;title&quot;:&quot;Artifacts&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/artifacts&quot;,&quot;link_classes&quot;:&quot;shortcuts-builds&quot;,&quot;is_active&quot;:false}],&quot;separated&quot;:false},{&quot;id&quot;:&quot;deploy_menu&quot;,&quot;title&quot;:&quot;Deploy&quot;,&quot;icon&quot;:&quot;deployments&quot;,&quot;avatar_shape&quot;:&quot;rect&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/releases&quot;,&quot;is_active&quot;:false,&quot;items&quot;:[{&quot;id&quot;:&quot;releases&quot;,&quot;title&quot;:&quot;Releases&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/releases&quot;,&quot;link_classes&quot;:&quot;shortcuts-deployments-releases&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;model_registry&quot;,&quot;title&quot;:&quot;Model registry&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/ml/models&quot;,&quot;is_active&quot;:false}],&quot;separated&quot;:false},{&quot;id&quot;:&quot;operations_menu&quot;,&quot;title&quot;:&quot;Operate&quot;,&quot;icon&quot;:&quot;cloud-pod&quot;,&quot;avatar_shape&quot;:&quot;rect&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/environments&quot;,&quot;is_active&quot;:false,&quot;items&quot;:[{&quot;id&quot;:&quot;environments&quot;,&quot;title&quot;:&quot;Environments&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/environments&quot;,&quot;link_classes&quot;:&quot;shortcuts-environments&quot;,&quot;is_active&quot;:false}],&quot;separated&quot;:false},{&quot;id&quot;:&quot;monitor_menu&quot;,&quot;title&quot;:&quot;Monitor&quot;,&quot;icon&quot;:&quot;monitor&quot;,&quot;avatar_shape&quot;:&quot;rect&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/incidents&quot;,&quot;is_active&quot;:false,&quot;items&quot;:[{&quot;id&quot;:&quot;incidents&quot;,&quot;title&quot;:&quot;Incidents&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/incidents&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;service_desk&quot;,&quot;title&quot;:&quot;Service Desk&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/issues/service_desk&quot;,&quot;is_active&quot;:false}],&quot;separated&quot;:false},{&quot;id&quot;:&quot;analyze_menu&quot;,&quot;title&quot;:&quot;Analyze&quot;,&quot;icon&quot;:&quot;chart&quot;,&quot;avatar_shape&quot;:&quot;rect&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/value_stream_analytics&quot;,&quot;is_active&quot;:false,&quot;items&quot;:[{&quot;id&quot;:&quot;cycle_analytics&quot;,&quot;title&quot;:&quot;Value stream analytics&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/value_stream_analytics&quot;,&quot;link_classes&quot;:&quot;shortcuts-project-cycle-analytics&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;contributors&quot;,&quot;title&quot;:&quot;Contributor analytics&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/graphs/master?ref_type=heads&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;ci_cd_analytics&quot;,&quot;title&quot;:&quot;CI/CD analytics&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/pipelines/charts&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;repository_analytics&quot;,&quot;title&quot;:&quot;Repository analytics&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/graphs/master/charts&quot;,&quot;link_classes&quot;:&quot;shortcuts-repository-charts&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;code_review&quot;,&quot;title&quot;:&quot;Code review analytics&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/analytics/code_reviews&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;issues&quot;,&quot;title&quot;:&quot;Issue analytics&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/analytics/issues_analytics&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;insights&quot;,&quot;title&quot;:&quot;Insights&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/insights/&quot;,&quot;link_classes&quot;:&quot;shortcuts-project-insights&quot;,&quot;is_active&quot;:false},{&quot;id&quot;:&quot;model_experiments&quot;,&quot;title&quot;:&quot;Model experiments&quot;,&quot;link&quot;:&quot;/wireshark/wireshark/-/ml/experiments&quot;,&quot;is_active&quot;:false}],&quot;separated&quot;:false}],&quot;current_context_header&quot;:&quot;Project&quot;,&quot;university_path&quot;:&quot;https://university.gitlab.com&quot;,&quot;support_path&quot;:&quot;https://support.gitlab.com&quot;,&quot;docs_path&quot;:&quot;/help/docs&quot;,&quot;display_whats_new&quot;:true,&quot;show_version_check&quot;:null,&quot;search&quot;:{&quot;search_path&quot;:&quot;/search&quot;,&quot;issues_path&quot;:&quot;/dashboard/issues&quot;,&quot;mr_path&quot;:&quot;/dashboard/merge_requests&quot;,&quot;autocomplete_path&quot;:&quot;/search/autocomplete&quot;,&quot;settings_path&quot;:&quot;/search/settings&quot;,&quot;search_context&quot;:{&quot;group&quot;:{&quot;id&quot;:3421856,&quot;name&quot;:&quot;Wireshark Foundation&quot;,&quot;full_name&quot;:&quot;Wireshark Foundation&quot;},&quot;group_metadata&quot;:{&quot;issues_path&quot;:&quot;/groups/wireshark/-/issues&quot;,&quot;mr_path&quot;:&quot;/groups/wireshark/-/merge_requests&quot;},&quot;project&quot;:{&quot;id&quot;:7898047,&quot;name&quot;:&quot;Wireshark&quot;},&quot;project_metadata&quot;:{&quot;mr_path&quot;:&quot;/wireshark/wireshark/-/merge_requests&quot;,&quot;issues_path&quot;:&quot;/wireshark/wireshark/-/issues&quot;},&quot;code_search&quot;:false,&quot;scope&quot;:&quot;wiki_blobs&quot;,&quot;for_snippets&quot;:null}},&quot;panel_type&quot;:&quot;project&quot;,&quot;shortcut_links&quot;:[{&quot;title&quot;:&quot;Snippets&quot;,&quot;href&quot;:&quot;/explore/snippets&quot;,&quot;css_class&quot;:&quot;dashboard-shortcuts-snippets&quot;},{&quot;title&quot;:&quot;Groups&quot;,&quot;href&quot;:&quot;/explore/groups&quot;,&quot;css_class&quot;:&quot;dashboard-shortcuts-groups&quot;},{&quot;title&quot;:&quot;Projects&quot;,&quot;href&quot;:&quot;/explore/projects&quot;,&quot;css_class&quot;:&quot;dashboard-shortcuts-projects&quot;}],&quot;terms&quot;:&quot;/-/users/terms&quot;,&quot;sign_in_visible&quot;:&quot;true&quot;,&quot;allow_signup&quot;:&quot;true&quot;,&quot;new_user_registration_path&quot;:&quot;/users/sign_up&quot;,&quot;sign_in_path&quot;:&quot;/users/sign_in?redirect_to_referer=yes&quot;,&quot;trial_registration_path&quot;:&quot;/-/trial_registrations/new&quot;}"></aside>
+
+<div class="panels-container gl-flex gl-gap-3">
+<div class="content-panels gl-flex-1 gl-w-full gl-flex gl-gap-3 gl-relative js-content-panels gl-@container/content-panels">
+<div class="js-static-panel static-panel content-wrapper gl-relative paneled-view gl-flex-1 gl-overflow-y-auto gl-bg-default" id="static-panel-portal">
+<div class="panel-header">
+<div class="broadcast-wrapper">
+
+
+
+</div>
+<div class="top-bar-fixed container-fluid gl-rounded-t-lg gl-sticky gl-top-0 gl-left-0 gl-mx-0 gl-w-full" data-testid="top-bar">
+<div class="top-bar-container gl-flex gl-items-center gl-gap-2">
+<div class="gl-grow gl-basis-0 gl-flex gl-items-center gl-justify-start gl-gap-3">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Wireshark Foundation","item":"https://gitlab.com/wireshark"},{"@type":"ListItem","position":2,"name":"Wireshark","item":"https://gitlab.com/wireshark/wireshark"},{"@type":"ListItem","position":3,"name":"Wiki","item":"https://gitlab.com/wireshark/wireshark/-/wikis/uploads/__moin_import__/attachments/SampleCaptures/http.cap"}]}
+
+
+</script>
+<div data-testid="breadcrumb-links" id="js-vue-page-breadcrumbs-wrapper">
+<div data-breadcrumbs-json="[{&quot;text&quot;:&quot;Wireshark Foundation&quot;,&quot;href&quot;:&quot;/wireshark&quot;,&quot;avatarPath&quot;:&quot;/uploads/-/system/group/avatar/3421856/wsicon180.png&quot;},{&quot;text&quot;:&quot;Wireshark&quot;,&quot;href&quot;:&quot;/wireshark/wireshark&quot;,&quot;avatarPath&quot;:&quot;/uploads/-/system/project/avatar/7898047/wsicon256.png&quot;},{&quot;text&quot;:&quot;Wiki&quot;,&quot;href&quot;:&quot;/wireshark/wireshark/-/wikis/uploads/__moin_import__/attachments/SampleCaptures/http.cap&quot;,&quot;avatarPath&quot;:null}]" id="js-vue-page-breadcrumbs"></div>
+<div id="js-injected-page-breadcrumbs"></div>
+<div id="js-page-breadcrumbs-extra"></div>
+</div>
+
+
+<div id="js-work-item-feedback"></div>
+
+</div>
+</div>
+</div>
+
+</div>
+<div class="panel-content">
+<div class="panel-content-inner js-static-panel-inner">
+<div class="alert-wrapper alert-wrapper-top-space gl-flex gl-flex-col gl-gap-3 container-fluid container-limited">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</div>
+
+<div class="container-fluid container-limited project-highlight-puc">
+<main class="content gl-@container/panel gl-pb-3" id="content-body" itemscope itemtype="http://schema.org/SoftwareSourceCode">
+<div id="js-drawer-container"></div>
+<div class="flash-container flash-container-page sticky" data-testid="flash-container">
+<div id="js-global-alerts"></div>
+</div>
+
+
+
+
+
+
+
+
+<div class="wiki-overview layout-limited-width">
+<div data-can-create="false" data-edit-sidebar-url="/wireshark/wireshark/-/wikis/_sidebar?view=create" data-has-custom-sidebar="false" data-has-wiki-pages data-view-all-pages-path="/wireshark/wireshark/-/wikis/pages" id="js-wiki-sidebar"></div>
+
+<div class="wiki-page-details">
+<section class="gl-flex gl-empty-state gl-text-center gl-flex-col" data-testid="wiki-404">
+<div class="gl-max-w-full">
+<img alt="" class="gl-dark-invert-keep-hue" src="/assets/illustrations/empty-state/empty-wiki-md-713a4f14423fe5957d3bf98027b6eeae1e064c0bbec3c6ab9e85ea9eee15fcd6.svg" />
+</div>
+<div class="gl-empty-state-content gl-mx-auto gl-my-0 gl-m-auto gl-p-5">
+<h1 class="gl-text-size-h-display gl-leading-36 gl-mt-0 gl-mb-0 h4">
+This page doesn&#39;t exist
+</h1>
+<p class="gl-mt-4 gl-mb-0" data-testid="empty-state-description">
+Use the sidebar to find a different page.
+
+</p>
+</div>
+</section>
+
+</div>
+</div>
+
+</main>
+</div>
+
+</div>
+
+</div>
+</div>
+<div class="js-dynamic-panel paneled-view contextual-panel gl-@container/panel !gl-absolute gl-shadow-lg @xl/content-panels:gl-w-1/2 @xl/content-panels:gl-shadow-none @xl/content-panels:!gl-relative" id="contextual-panel-portal"></div>
+</div>
+</div>
+
+</div>
+
+
+<script nonce="ELFRRCe1GQFmaostaqBGpA==">
+//<![CDATA[
+if ('loading' in HTMLImageElement.prototype) {
+  document.querySelectorAll('img.lazy').forEach(img => {
+    img.loading = 'lazy';
+    let imgUrl = img.dataset.src;
+    // Only adding width + height for avatars for now
+    if (imgUrl.indexOf('/avatar/') > -1 && imgUrl.indexOf('?') === -1) {
+      const targetWidth = img.getAttribute('width') || img.width;
+      imgUrl += `?width=${targetWidth}`;
+    }
+    img.src = imgUrl;
+    img.removeAttribute('data-src');
+    img.classList.remove('lazy');
+    img.classList.add('js-lazy-loaded');
+    img.dataset.testid = 'js-lazy-loaded-content';
+  });
+}
+
+//]]>
+</script>
+<script nonce="ELFRRCe1GQFmaostaqBGpA==">
+//<![CDATA[
+gl = window.gl || {};
+gl.experiments = {};
+
+
+//]]>
+</script>
+
+</body>
+</html>
+

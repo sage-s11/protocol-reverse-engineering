@@ -3,19 +3,15 @@ package com.pre.cli;
 import com.pre.core.*;
 import com.pre.output.Generator;
 
-import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Main CLI entry point.
  *
  * Usage:
- *   java -jar pre-engine.jar <pcap_file> [--name PROTO_NAME] [--flow N] [--output-dir DIR]
- *
- * Examples:
- *   java -jar pre-engine.jar tests/pcaps/iot_device_sim.pcap --name IoTDevice
- *   java -jar pre-engine.jar captures/router.pcap --name RouterMgmt --flow 0
+ *   java -jar pre-engine.jar <pcap_file> [--name PROTO_NAME] [--flow N] [--merge] [--output-dir DIR]
  */
 public class Engine {
 
@@ -40,7 +36,6 @@ public class Engine {
             """ + RESET;
 
     public static void main(String[] args) throws Exception {
-        // ── Parse args ───────────────────────────────────────────────────────
         if (args.length == 0 || args[0].equals("--help")) {
             printUsage(); return;
         }
@@ -56,20 +51,22 @@ public class Engine {
         String protoName  = "UnknownProto";
         int flowIndex     = 0;
         String outputDir  = "output";
+        boolean mergeFlows = false;
 
         for (int i = 1; i < args.length; i++) {
             switch (args[i]) {
-                case "--name"       -> protoName = args[++i];
-                case "--flow"       -> flowIndex  = Integer.parseInt(args[++i]);
-                case "--output-dir" -> outputDir  = args[++i];
+                case "--name"       -> protoName   = args[++i];
+                case "--flow"       -> flowIndex   = Integer.parseInt(args[++i]);
+                case "--output-dir" -> outputDir   = args[++i];
+                case "--merge"      -> mergeFlows  = true;
             }
         }
 
-        run(pcapPath, protoName, flowIndex, outputDir);
+        run(pcapPath, protoName, flowIndex, outputDir, mergeFlows);
     }
 
-    private static void run(String pcapPath, String protoName, int flowIndex, String outputDir)
-            throws Exception {
+    private static void run(String pcapPath, String protoName, int flowIndex, String outputDir,
+                            boolean mergeFlows) throws Exception {
 
         System.out.println(BANNER);
         long t0 = System.currentTimeMillis();
@@ -84,6 +81,14 @@ public class Engine {
             System.exit(1);
         }
         ok("Loaded " + flows.size() + " flow(s) in " + (System.currentTimeMillis() - t0) + "ms");
+
+        // ── Merge flows if requested ─────────────────────────────────────────
+        if (mergeFlows) {
+            int beforeCount = flows.size();
+            flows = PcapLoader.mergeByService(flows);
+            ok("Merged " + beforeCount + " flows → " + flows.size() + " service group(s)");
+        }
+
         System.out.println();
         System.out.println(DIM + PcapLoader.summarize(flows) + RESET);
 
@@ -96,6 +101,53 @@ public class Engine {
         Flow flow = flows.get(flowIndex);
         step("Analysing flow " + flowIndex + ": " + flow.getKey());
         step(flow.messageCount() + " messages, " + flow.totalBytes() + " bytes total");
+        if (flow.isReassembled()) {
+            ok("TCP stream reassembled: " + MAGENTA + flow.getReassemblyInfo() + RESET +
+               " (" + flow.getStreamBytes() + " stream bytes → " +
+               flow.messageCount() + " application messages)");
+        }
+
+        // ── XOR Deobfuscation ─────────────────────────────────────────────
+        section("Deobfuscation check");
+        step("Testing for XOR obfuscation …");
+
+        XorDeobfuscator.XorResult xorResult = XorDeobfuscator.detect(flow.getPayloads());
+        boolean xorApplied = false;
+
+        if (xorResult.detected() && xorResult.confidence() >= 0.50) {
+            ok("XOR obfuscation detected!");
+            System.out.printf("       %sKey: %s%s%s (length: %d byte%s)%n",
+                    MAGENTA, BOLD, xorResult.keyHex(), RESET,
+                    xorResult.keyLength(), xorResult.keyLength() > 1 ? "s" : "");
+            System.out.printf("       %sCrib matched: %s%s%n", DIM, xorResult.cribMatched(), RESET);
+            System.out.printf("       %sConfidence: %s%.0f%%%s%n",
+                    DIM, GREEN, xorResult.confidence() * 100, RESET);
+
+            // Show preview of decrypted data
+            if (!xorResult.decryptedMessages().isEmpty()) {
+                byte[] first = xorResult.decryptedMessages().get(0);
+                String preview = XorDeobfuscator.previewDecrypted(first, 80);
+                System.out.printf("       %sPreview: %s\"%s\"%s%n", DIM, CYAN, preview, RESET);
+            }
+
+            // Replace flow payloads with decrypted versions for analysis
+            Flow decryptedFlow = new Flow(flow.getProtocol(),
+                    flow.getSrcIp(), flow.getSrcPort(),
+                    flow.getDstIp(), flow.getDstPort());
+            if (flow.isReassembled()) {
+                decryptedFlow.setReassemblyInfo(
+                        flow.getReassemblyInfo() + "+xor(" + xorResult.keyHex() + ")",
+                        flow.getStreamBytes());
+            }
+            for (byte[] msg : xorResult.decryptedMessages()) {
+                decryptedFlow.addPayload(msg);
+            }
+            flow = decryptedFlow;
+            xorApplied = true;
+            ok("Proceeding with decrypted stream (" + flow.messageCount() + " messages)");
+        } else {
+            System.out.println("       " + DIM + "No XOR obfuscation detected" + RESET);
+        }
 
         // ── Analyse ───────────────────────────────────────────────────────────
         section("Statistical analysis");
@@ -114,21 +166,51 @@ public class Engine {
         step("Inferring field structure …");
         ok("Found " + result.fields().size() + " field candidates");
         System.out.println();
-        System.out.printf(BOLD + "  %-8s %-3s %-14s %-30s %6s %8s%n" + RESET,
-                "Offset", "W", "Type", "Label", "Conf", "Entropy");
-        System.out.println("  " + "─".repeat(76));
+        printFieldTable(result.fields());
 
-        result.fields().forEach(f -> {
-            String confColor = f.confidence() >= 0.8 ? GREEN : f.confidence() >= 0.5 ? YELLOW : RED;
-            System.out.printf("  %s%-8s%s %-3s %-14s %-30s %s%6s%s  H=%.2f  %s%s%s%n",
-                    CYAN, String.format("0x%02x", f.offset()), RESET,
-                    f.width() + "B",
-                    f.typeHint(),
-                    f.label(),
-                    confColor, String.format("%.0f%%", f.confidence() * 100), RESET,
-                    f.entropy(),
-                    DIM, f.valuesPreview(), RESET);
-        });
+        // ── Per-type analysis ─────────────────────────────────────────────────
+        if (!result.perTypeAnalysis().isEmpty()) {
+            section("Per-type payload analysis");
+            step("Grouped messages by type — analyzing payload structure per message type");
+            System.out.println();
+
+            for (var entry : result.perTypeAnalysis().entrySet()) {
+                AnalysisResult.TypeAnalysis ta = entry.getValue();
+                System.out.printf("  %s%s┌── Type 0x%x%s  (%d messages, payload at offset 0x%02x, %d–%d bytes)%n",
+                        BOLD, MAGENTA, ta.typeValue(), RESET,
+                        ta.messageCount(), ta.payloadOffset(),
+                        ta.minSize(), ta.maxSize());
+
+                if (ta.payloadFields().isEmpty()) {
+                    System.out.println("  │   " + DIM + "(empty payload — no fields)" + RESET);
+                } else {
+                    int maxShow = 10;
+                    int total = ta.payloadFields().size();
+                    int show = Math.min(total, maxShow);
+                    for (int i = 0; i < show; i++) {
+                        FieldCandidate f = ta.payloadFields().get(i);
+                        String prefix = (i == show - 1 && total <= maxShow) ? "└" : "├";
+                        String confColor = f.confidence() >= 0.8 ? GREEN
+                                : f.confidence() >= 0.5 ? YELLOW : RED;
+                        System.out.printf("  │   %s %s0x%02x%s  %dB  %-14s %-24s %s%s%s  H=%.2f  %s%s%s%n",
+                                prefix,
+                                CYAN, f.offset(), RESET,
+                                f.width(), f.typeHint(), f.label(),
+                                confColor, String.format("%.0f%%", f.confidence() * 100), RESET,
+                                f.entropy(),
+                                DIM, f.valuesPreview(), RESET);
+                    }
+                    if (total > maxShow) {
+                        System.out.printf("  │   └ %s… %d more fields (0x%02x–0x%02x) …%s%n",
+                                DIM, total - maxShow,
+                                ta.payloadFields().get(maxShow).offset(),
+                                ta.payloadFields().get(total - 1).offset() + ta.payloadFields().get(total - 1).width(),
+                                RESET);
+                    }
+                }
+                System.out.println("  │");
+            }
+        }
 
         // ── Grammar ───────────────────────────────────────────────────────────
         section("Grammar analysis");
@@ -148,6 +230,12 @@ public class Engine {
         System.out.println("  Protocol name    : " + BOLD + protoName + RESET);
         System.out.println("  Messages analysed: " + result.messageCount());
         System.out.println("  Fields inferred  : " + result.fields().size());
+        if (!result.perTypeAnalysis().isEmpty()) {
+            int totalPerType = result.perTypeAnalysis().values().stream()
+                    .mapToInt(ta -> ta.payloadFields().size()).sum();
+            System.out.println("  Per-type fields  : " + totalPerType +
+                    " (across " + result.perTypeAnalysis().size() + " message types)");
+        }
         System.out.println("  Framing          : " + b.strategy().label +
                 " (" + String.format("%.0f%%", b.confidence() * 100) + " confidence)");
         System.out.println("  Analysis time    : " + analyzeMs + " ms");
@@ -158,19 +246,74 @@ public class Engine {
 
         // ── Live parse demo ───────────────────────────────────────────────────
         section("Live parse demo (first 3 messages)");
-        String parserCode = Generator.generateParser(result, protoName);
-        liveDemo(result, protoName, parserCode);
+        liveDemo(result, protoName);
         System.out.println();
     }
 
+    private static void printFieldTable(List<FieldCandidate> fields) {
+        System.out.printf(BOLD + "  %-8s %-3s %-14s %-30s %6s %8s%n" + RESET,
+                "Offset", "W", "Type", "Label", "Conf", "Entropy");
+        System.out.println("  " + "─".repeat(76));
+
+        int payloadRunCount = 0;
+        int payloadRunStart = -1;
+        int payloadRunEnd = -1;
+
+        for (FieldCandidate f : fields) {
+            boolean isPayload = f.label().contains("payload") || f.label().contains("high entropy");
+
+            if (isPayload) {
+                payloadRunCount++;
+                if (payloadRunStart < 0) payloadRunStart = f.offset();
+                payloadRunEnd = f.offset() + f.width();
+
+                // Show first 2 payload fields, then collapse
+                if (payloadRunCount <= 2) {
+                    printField(f);
+                }
+                continue;
+            }
+
+            // Non-payload field — flush any pending payload run
+            if (payloadRunCount > 2) {
+                System.out.printf("  %s  … %d more payload/data fields (0x%02x–0x%02x) …%s%n",
+                        DIM, payloadRunCount - 2, payloadRunStart, payloadRunEnd, RESET);
+            }
+            payloadRunCount = 0;
+            payloadRunStart = -1;
+            printField(f);
+        }
+
+        // Flush trailing payload run
+        if (payloadRunCount > 2) {
+            System.out.printf("  %s  … %d more payload/data fields (0x%02x–0x%02x) …%s%n",
+                    DIM, payloadRunCount - 2, payloadRunStart, payloadRunEnd, RESET);
+        }
+    }
+
+    private static void printField(FieldCandidate f) {
+        String confColor = f.confidence() >= 0.8 ? GREEN : f.confidence() >= 0.5 ? YELLOW : RED;
+        System.out.printf("  %s%-8s%s %-3s %-14s %-30s %s%6s%s  H=%.2f  %s%s%s%n",
+                CYAN, String.format("0x%02x", f.offset()), RESET,
+                f.width() + "B",
+                f.typeHint(),
+                f.label(),
+                confColor, String.format("%.0f%%", f.confidence() * 100), RESET,
+                f.entropy(),
+                DIM, f.valuesPreview(), RESET);
+    }
+
     /**
-     * Compiles and runs the generated parser in-process via javax.tools.
-     * Falls back to reflection-free structural print if compiler unavailable.
+     * Live parse demo — prints first 3 messages with field values,
+     * including per-type payload fields.
      */
-    private static void liveDemo(AnalysisResult result, String protoName, String parserCode) {
-        // Use the Generator's field info directly — no need to actually compile
-        String className = Generator.toClassName(protoName);
+    private static void liveDemo(AnalysisResult result, String protoName) {
         List<byte[]> messages = result.rawMessages();
+
+        // Find type discriminator for per-type lookup
+        var typeField = result.fields().stream()
+                .filter(f -> f.label().contains("enum"))
+                .findFirst().orElse(null);
 
         for (int i = 0; i < Math.min(3, messages.size()); i++) {
             byte[] raw = messages.get(i);
@@ -184,14 +327,68 @@ public class Engine {
             System.out.println("  " + DIM + hex.toString().trim() +
                     (raw.length > 24 ? " …" : "") + RESET);
 
-            // Print each field's parsed value directly
-            result.fields().forEach(f -> {
-                if (raw.length < f.offset() + f.width()) return;
-                String val = extractFieldValue(raw, f);
-                System.out.printf("    %s%-38s%s = %s%s%s%n",
-                        CYAN, f.label(), RESET,
-                        YELLOW, val, RESET);
-            });
+            // Print common header fields (collapsing payload runs)
+            printFieldValues(result.fields(), raw, CYAN, "    ");
+
+            // Print per-type payload fields
+            if (typeField != null && !result.perTypeAnalysis().isEmpty()
+                    && raw.length >= typeField.offset() + typeField.width()) {
+                long typeVal = Analyzer.readUint(raw, typeField.offset(), typeField.width(), true);
+                var ta = result.perTypeAnalysis().get(typeVal);
+                if (ta != null && !ta.payloadFields().isEmpty()) {
+                    System.out.printf("    %s── payload (type 0x%x) ──%s%n",
+                            DIM, typeVal, RESET);
+                    printFieldValues(ta.payloadFields(), raw, MAGENTA, "      ");
+                }
+            }
+        }
+    }
+
+    /** Print field values from a list, collapsing payload runs and capping total output */
+    private static void printFieldValues(List<FieldCandidate> fields, byte[] raw,
+                                          String labelColor, String indent) {
+        int printed = 0;
+        int payloadSkipped = 0;
+        int maxFields = 15;
+
+        for (FieldCandidate f : fields) {
+            if (raw.length < f.offset() + f.width()) continue;
+            boolean isPayload = f.label().contains("payload") || f.label().contains("high entropy");
+
+            if (isPayload) {
+                payloadSkipped++;
+                if (payloadSkipped <= 2 && printed < maxFields) {
+                    String val = extractFieldValue(raw, f);
+                    System.out.printf("%s%s%-36s%s = %s%s%s%n",
+                            indent, labelColor, f.label(), RESET, YELLOW, val, RESET);
+                    printed++;
+                }
+                continue;
+            }
+
+            // Flush payload run
+            if (payloadSkipped > 2) {
+                System.out.printf("%s%s  … %d more payload fields …%s%n",
+                        indent, DIM, payloadSkipped - 2, RESET);
+            }
+            payloadSkipped = 0;
+
+            if (printed >= maxFields) continue;
+
+            String val = extractFieldValue(raw, f);
+            System.out.printf("%s%s%-36s%s = %s%s%s%n",
+                    indent, labelColor, f.label(), RESET, YELLOW, val, RESET);
+            printed++;
+        }
+        if (payloadSkipped > 2) {
+            System.out.printf("%s%s  … %d more payload fields …%s%n",
+                    indent, DIM, payloadSkipped - 2, RESET);
+        }
+        int remaining = (int) fields.stream()
+                .filter(f -> raw.length >= f.offset() + f.width()).count() - printed;
+        if (remaining > 0 && printed >= maxFields) {
+            System.out.printf("%s%s  … %d more fields omitted …%s%n",
+                    indent, DIM, remaining, RESET);
         }
     }
 
@@ -247,10 +444,12 @@ public class Engine {
         System.out.println("Options:");
         System.out.println("  --name       Protocol name for output files (default: UnknownProto)");
         System.out.println("  --flow       Flow index to analyse (default: 0 = largest flow)");
+        System.out.println("  --merge      Merge flows by server endpoint (useful for DNS, etc.)");
         System.out.println("  --output-dir Output directory (default: ./output)");
         System.out.println();
         System.out.println("Examples:");
         System.out.println("  java -jar pre-engine.jar tests/pcaps/iot_device_sim.pcap --name IoTDevice");
         System.out.println("  java -jar pre-engine.jar captures/router.pcap --name RouterMgmt");
+        System.out.println("  java -jar pre-engine.jar tests/pcaps/dns_live.pcap --name DNS --merge");
     }
 }

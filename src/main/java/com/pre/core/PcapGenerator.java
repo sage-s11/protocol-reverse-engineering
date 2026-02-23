@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Generates synthetic .pcap files for Phase 1 (ground-truth) testing.
+ * Generates synthetic .pcap files for testing and demonstration.
  * Zero external dependencies — writes raw pcap format manually.
  *
  * Run: java -cp target/pre-engine.jar com.pre.core.PcapGenerator
@@ -39,6 +39,9 @@ public class PcapGenerator {
         genFixedSizeProtocol(outputDir.resolve("sensor_beacon_sim.pcap"), 20);
         genObfuscatedProtocol(outputDir.resolve("obfuscated_sim.pcap"), 15);
         genMdnsLike(outputDir.resolve("mdns_like_sim.pcap"), 20);
+        genC2Beacon(outputDir.resolve("c2_beacon_sim.pcap"), 60);
+        genScadaProtocol(outputDir.resolve("scada_modbus_sim.pcap"), 40);
+        genVpnTunnel(outputDir.resolve("vpn_tunnel_sim.pcap"), 50);
 
         System.out.println();
         System.out.println("  Files generated:");
@@ -51,7 +54,7 @@ public class PcapGenerator {
     }
 
     // ────────────────────────────────────────────────────────────────────────
-    // Protocol simulators
+    // Protocol simulators — original
     // ────────────────────────────────────────────────────────────────────────
 
     /**
@@ -152,7 +155,6 @@ public class PcapGenerator {
 
     /**
      * Obfuscated protocol with rolling XOR cipher.
-     * Magic 0xBEEF still visible, body is XOR'd.
      * [0x00-0x01] Magic: 0xBE 0xEF
      * [0x02-0x03] Body length (uint16 LE)
      * [0x04+]     XOR-obfuscated payload
@@ -208,6 +210,343 @@ public class PcapGenerator {
         }
         writePcap(out, payloads);
         System.out.printf("  [✓] %-40s %d packets%n", out.getFileName(), n);
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Protocol simulators — new (C2, SCADA, VPN)
+    // ────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Simulated malware C2 (Command & Control) beacon protocol.
+     *
+     * Realistic threat scenario: implant phones home periodically,
+     * receives commands, exfiltrates data. Designed to exercise
+     * every classifier in the engine.
+     *
+     * Fixed header (20 bytes):
+     * [0x00-0x01]  Magic: 0xCA 0xFE
+     * [0x02]       Version: 0x03
+     * [0x03]       Message type (enum):
+     *                0x01=BEACON (implant → C2)
+     *                0x02=COMMAND (C2 → implant)
+     *                0x03=EXFIL_DATA (implant → C2)
+     *                0x04=EXFIL_ACK (C2 → implant)
+     *                0x05=HEARTBEAT (implant → C2)
+     *                0x06=HEARTBEAT_ACK (C2 → implant)
+     * [0x04-0x07]  Session ID (uint32 BE, random per implant, constant within session)
+     * [0x08-0x09]  Sequence number (uint16 BE, monotonically increasing)
+     * [0x0A-0x0B]  Payload length (uint16 BE, bytes after header)
+     * [0x0C-0x0F]  Implant IPv4 (source address of infected host)
+     * [0x10-0x13]  Timestamp (uint32 BE, Unix epoch)
+     * [0x14+]      Payload (variable, depends on message type)
+     *
+     * Payload structure by type:
+     *   BEACON:        4B uptime + 2B OS_ID + variable hostname (XOR 0x5A)
+     *   COMMAND:       1B cmd_code + variable args
+     *   EXFIL_DATA:    2B chunk_id + variable encrypted data
+     *   EXFIL_ACK:     2B chunk_id + 1B status
+     *   HEARTBEAT:     empty (0 bytes)
+     *   HEARTBEAT_ACK: empty (0 bytes)
+     */
+    private static void genC2Beacon(Path out, int n) throws IOException {
+        Random rnd = new Random(100);
+        List<byte[]> payloads = new ArrayList<>();
+
+        // Simulate 3 infected hosts with different session IDs
+        int[] sessionIds = {0xDEAD0001, 0xDEAD0002, 0xDEAD0003};
+        byte[][] implantIps = {
+            {10, 0, 1, 50},
+            {10, 0, 1, 77},
+            {(byte)172, 16, 5, 22}
+        };
+        // OS fingerprints: 0x0601=Win10, 0x0602=Win11, 0x1404=Ubuntu20
+        int[] osIds = {0x0601, 0x0602, 0x1404};
+        String[] hostnames = {"DESKTOP-A7K2M", "LAPTOP-R9X3P", "dev-srv-03"};
+        int[] cmdCodes = {0x10, 0x20, 0x30, 0x40, 0x50};
+        // 0x10=sleep, 0x20=screenshot, 0x30=keylog, 0x40=download, 0x50=shell
+
+        long baseTimestamp = 1740000000L; // ~Feb 2025
+        int globalSeq = 0;
+
+        for (int i = 0; i < n; i++) {
+            int implantIdx = i % 3;
+            int sessionId = sessionIds[implantIdx];
+            byte[] implantIp = implantIps[implantIdx];
+            long timestamp = baseTimestamp + (i * 30); // 30-second beacon interval
+
+            // Cycle through message types to create realistic C2 chatter
+            // Pattern: BEACON → COMMAND → HEARTBEAT → HEARTBEAT_ACK → EXFIL → EXFIL_ACK
+            int phase = (i / 3) % 6;
+            int msgType;
+            byte[] payload;
+
+            switch (phase) {
+                case 0 -> { // BEACON
+                    msgType = 0x01;
+                    int uptime = 3600 + i * 30;
+                    byte[] hostnameBytes = hostnames[implantIdx].getBytes();
+                    // XOR obfuscate the hostname
+                    byte[] xorHostname = new byte[hostnameBytes.length];
+                    for (int j = 0; j < hostnameBytes.length; j++)
+                        xorHostname[j] = (byte)(hostnameBytes[j] ^ 0x5A);
+
+                    ByteBuffer pb = ByteBuffer.allocate(6 + xorHostname.length).order(ByteOrder.BIG_ENDIAN);
+                    pb.putInt(uptime);
+                    pb.putShort((short)osIds[implantIdx]);
+                    pb.put(xorHostname);
+                    payload = pb.array();
+                }
+                case 1 -> { // COMMAND
+                    msgType = 0x02;
+                    int cmdCode = cmdCodes[rnd.nextInt(cmdCodes.length)];
+                    byte[] cmdArgs = new byte[2 + rnd.nextInt(8)];
+                    rnd.nextBytes(cmdArgs);
+                    ByteBuffer pb = ByteBuffer.allocate(1 + cmdArgs.length);
+                    pb.put((byte)cmdCode);
+                    pb.put(cmdArgs);
+                    payload = pb.array();
+                }
+                case 2 -> { // HEARTBEAT
+                    msgType = 0x05;
+                    payload = new byte[0];
+                }
+                case 3 -> { // HEARTBEAT_ACK
+                    msgType = 0x06;
+                    payload = new byte[0];
+                }
+                case 4 -> { // EXFIL_DATA
+                    msgType = 0x03;
+                    int chunkId = (i / 18) + 1; // chunk increments slowly
+                    byte[] encryptedData = new byte[16 + rnd.nextInt(32)];
+                    rnd.nextBytes(encryptedData); // simulate encrypted exfiltrated data
+                    ByteBuffer pb = ByteBuffer.allocate(2 + encryptedData.length).order(ByteOrder.BIG_ENDIAN);
+                    pb.putShort((short)chunkId);
+                    pb.put(encryptedData);
+                    payload = pb.array();
+                }
+                default -> { // EXFIL_ACK
+                    msgType = 0x04;
+                    int chunkId = (i / 18) + 1;
+                    ByteBuffer pb = ByteBuffer.allocate(3).order(ByteOrder.BIG_ENDIAN);
+                    pb.putShort((short)chunkId);
+                    pb.put((byte)0x00); // status: OK
+                    payload = pb.array();
+                }
+            }
+
+            // Build the full message
+            int totalLen = 20 + payload.length;
+            ByteBuffer msg = ByteBuffer.allocate(totalLen).order(ByteOrder.BIG_ENDIAN);
+            msg.put((byte)0xCA);          // magic[0]
+            msg.put((byte)0xFE);          // magic[1]
+            msg.put((byte)0x03);          // version
+            msg.put((byte)msgType);       // message type
+            msg.putInt(sessionId);        // session ID
+            msg.putShort((short)(globalSeq++)); // sequence number
+            msg.putShort((short)payload.length); // payload length
+            msg.put(implantIp);           // implant IP
+            msg.putInt((int)timestamp);   // timestamp
+            msg.put(payload);             // payload
+
+            payloads.add(msg.array());
+        }
+        writePcap(out, payloads);
+        System.out.printf("  [✓] %-40s %d packets  (C2 beacon simulation)%n", out.getFileName(), n);
+    }
+
+    /**
+     * Simulated SCADA/Modbus-like industrial control protocol.
+     *
+     * Models a simplified Modbus TCP variant for PLC register access.
+     * Common in ICS/OT security analysis.
+     *
+     * Fixed header (12 bytes):
+     * [0x00-0x01]  Transaction ID (uint16 BE, sequential)
+     * [0x02-0x03]  Protocol ID (constant 0x0000 — Modbus standard)
+     * [0x04-0x05]  Length (uint16 BE, remaining bytes after this field)
+     * [0x06]       Unit ID (uint8, PLC address 1-4)
+     * [0x07]       Function code (enum):
+     *                0x03=READ_HOLDING_REGISTERS
+     *                0x06=WRITE_SINGLE_REGISTER
+     *                0x10=WRITE_MULTIPLE_REGISTERS
+     *                0x83=READ_ERROR (exception response)
+     *                0x86=WRITE_ERROR (exception response)
+     * [0x08+]      Data (varies by function code)
+     *
+     * Data by function:
+     *   READ request:    2B start_register + 2B register_count
+     *   READ response:   1B byte_count + N×2B register_values
+     *   WRITE_SINGLE:    2B register_addr + 2B value
+     *   WRITE_MULTI req: 2B start_register + 2B count + 1B byte_count + N×2B values
+     *   ERROR:           1B exception_code
+     */
+    private static void genScadaProtocol(Path out, int n) throws IOException {
+        Random rnd = new Random(200);
+        List<byte[]> payloads = new ArrayList<>();
+        int txid = 1;
+
+        for (int i = 0; i < n; i++) {
+            int unitId = (i % 4) + 1; // PLCs 1-4
+            int phase = (i / 4) % 5;  // cycle through operations
+            byte[] data;
+            int funcCode;
+
+            switch (phase) {
+                case 0 -> { // READ request
+                    funcCode = 0x03;
+                    int startReg = 100 + (i % 8) * 10;
+                    int regCount = 1 + rnd.nextInt(4);
+                    ByteBuffer db = ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN);
+                    db.putShort((short)startReg);
+                    db.putShort((short)regCount);
+                    data = db.array();
+                }
+                case 1 -> { // READ response
+                    funcCode = 0x03;
+                    int regCount = 1 + rnd.nextInt(4);
+                    ByteBuffer db = ByteBuffer.allocate(1 + regCount * 2).order(ByteOrder.BIG_ENDIAN);
+                    db.put((byte)(regCount * 2));
+                    for (int r = 0; r < regCount; r++) {
+                        db.putShort((short)(rnd.nextInt(4096))); // sensor values 0-4095
+                    }
+                    data = db.array();
+                }
+                case 2 -> { // WRITE_SINGLE
+                    funcCode = 0x06;
+                    int reg = 200 + (i % 5) * 10;
+                    int val = rnd.nextInt(1024);
+                    ByteBuffer db = ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN);
+                    db.putShort((short)reg);
+                    db.putShort((short)val);
+                    data = db.array();
+                }
+                case 3 -> { // WRITE_MULTI request
+                    funcCode = 0x10;
+                    int startReg = 300;
+                    int count = 2 + rnd.nextInt(3);
+                    ByteBuffer db = ByteBuffer.allocate(5 + count * 2).order(ByteOrder.BIG_ENDIAN);
+                    db.putShort((short)startReg);
+                    db.putShort((short)count);
+                    db.put((byte)(count * 2));
+                    for (int r = 0; r < count; r++) {
+                        db.putShort((short)rnd.nextInt(2048));
+                    }
+                    data = db.array();
+                }
+                default -> { // ERROR response
+                    funcCode = (i % 2 == 0) ? 0x83 : 0x86;
+                    data = new byte[]{(byte)(1 + rnd.nextInt(4))}; // exception codes 1-4
+                }
+            }
+
+            int remainingLen = 2 + data.length; // unitId + funcCode + data
+            ByteBuffer msg = ByteBuffer.allocate(8 + data.length).order(ByteOrder.BIG_ENDIAN);
+            msg.putShort((short)(txid++));    // transaction ID
+            msg.putShort((short)0x0000);      // protocol ID (Modbus)
+            msg.putShort((short)remainingLen); // length
+            msg.put((byte)unitId);            // unit ID
+            msg.put((byte)funcCode);          // function code
+            msg.put(data);
+
+            payloads.add(msg.array());
+        }
+        writePcap(out, payloads);
+        System.out.printf("  [✓] %-40s %d packets  (SCADA/Modbus simulation)%n", out.getFileName(), n);
+    }
+
+    /**
+     * Simulated VPN tunnel protocol (WireGuard-inspired).
+     *
+     * Models a custom tunnel with handshake + encrypted data transport.
+     * Tests: magic bytes, message typing, fixed vs variable length,
+     * counter fields, and high-entropy encrypted payloads.
+     *
+     * All messages share a common 4-byte header:
+     * [0x00-0x01]  Magic: 0x57 0x47 ("WG")
+     * [0x02]       Message type:
+     *                0x01=HANDSHAKE_INIT    (fixed 64 bytes)
+     *                0x02=HANDSHAKE_RESP    (fixed 64 bytes)
+     *                0x03=DATA              (variable length)
+     *                0x04=KEEPALIVE         (fixed 4 bytes, header only)
+     * [0x03]       Reserved: 0x00
+     *
+     * HANDSHAKE_INIT/RESP (64 bytes total):
+     *   [0x04-0x07]  Sender index (uint32 BE)
+     *   [0x08-0x0B]  Receiver index (uint32 BE, 0 for INIT)
+     *   [0x0C-0x2F]  Ephemeral public key (36 bytes, random)
+     *   [0x30-0x3F]  MAC (16 bytes, random)
+     *
+     * DATA (variable):
+     *   [0x04-0x07]  Receiver index (uint32 BE)
+     *   [0x08-0x0F]  Counter (uint64 BE, monotonically increasing)
+     *   [0x10+]      Encrypted payload (variable, random bytes)
+     *
+     * KEEPALIVE (4 bytes total): header only, no payload.
+     */
+    private static void genVpnTunnel(Path out, int n) throws IOException {
+        Random rnd = new Random(300);
+        List<byte[]> payloads = new ArrayList<>();
+
+        int senderIdx = 0x00AABB01;
+        int receiverIdx = 0x00CCDD02;
+        long counter = 0;
+
+        for (int i = 0; i < n; i++) {
+            int phase = i % 10; // cycle through phases
+            int msgType;
+            byte[] body;
+
+            if (phase == 0) {
+                // HANDSHAKE_INIT
+                msgType = 0x01;
+                ByteBuffer bb = ByteBuffer.allocate(60).order(ByteOrder.BIG_ENDIAN);
+                bb.putInt(senderIdx);
+                bb.putInt(0x00000000); // receiver unknown during init
+                byte[] ephKey = new byte[36]; rnd.nextBytes(ephKey);
+                bb.put(ephKey);
+                byte[] mac = new byte[16]; rnd.nextBytes(mac);
+                bb.put(mac);
+                body = bb.array();
+            } else if (phase == 1) {
+                // HANDSHAKE_RESP
+                msgType = 0x02;
+                ByteBuffer bb = ByteBuffer.allocate(60).order(ByteOrder.BIG_ENDIAN);
+                bb.putInt(receiverIdx);
+                bb.putInt(senderIdx);
+                byte[] ephKey = new byte[36]; rnd.nextBytes(ephKey);
+                bb.put(ephKey);
+                byte[] mac = new byte[16]; rnd.nextBytes(mac);
+                bb.put(mac);
+                body = bb.array();
+            } else if (phase == 9) {
+                // KEEPALIVE — no body
+                msgType = 0x04;
+                body = new byte[0];
+            } else {
+                // DATA — encrypted payload
+                msgType = 0x03;
+                int payloadLen = 64 + rnd.nextInt(128);
+                byte[] encrypted = new byte[payloadLen];
+                rnd.nextBytes(encrypted);
+
+                ByteBuffer bb = ByteBuffer.allocate(12 + payloadLen).order(ByteOrder.BIG_ENDIAN);
+                bb.putInt(receiverIdx);
+                bb.putLong(counter++);
+                bb.put(encrypted);
+                body = bb.array();
+            }
+
+            ByteBuffer msg = ByteBuffer.allocate(4 + body.length).order(ByteOrder.BIG_ENDIAN);
+            msg.put((byte)0x57);       // 'W'
+            msg.put((byte)0x47);       // 'G'
+            msg.put((byte)msgType);
+            msg.put((byte)0x00);       // reserved
+            msg.put(body);
+
+            payloads.add(msg.array());
+        }
+        writePcap(out, payloads);
+        System.out.printf("  [✓] %-40s %d packets  (VPN tunnel simulation)%n", out.getFileName(), n);
     }
 
     // ────────────────────────────────────────────────────────────────────────

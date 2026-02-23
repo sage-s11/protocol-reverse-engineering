@@ -6,12 +6,15 @@ import java.util.List;
 /**
  * Represents a single TCP/UDP conversation (flow) extracted from a pcap.
  * Holds the raw payload bytes from every packet in that conversation.
+ *
+ * For TCP flows, payloads may be either raw segments (before reassembly)
+ * or reassembled application-layer messages (after TcpReassembler).
  */
 public class Flow {
 
     public enum Protocol { TCP, UDP, UNKNOWN }
 
-    private final String key;          // human-readable flow identifier
+    private final String key;
     private final Protocol protocol;
     private final String srcIp;
     private final int srcPort;
@@ -19,13 +22,17 @@ public class Flow {
     private final int dstPort;
     private final List<byte[]> payloads = new ArrayList<>();
 
+    // Reassembly metadata (null if not reassembled)
+    private String reassemblyInfo;
+    private int streamBytes;
+
     public Flow(Protocol protocol, String srcIp, int srcPort, String dstIp, int dstPort) {
         this.protocol = protocol;
         this.srcIp    = srcIp;
         this.srcPort  = srcPort;
         this.dstIp    = dstIp;
         this.dstPort  = dstPort;
-        // Canonical key: alphabetically smaller endpoint first
+
         String a = srcIp + ":" + srcPort;
         String b = dstIp + ":" + dstPort;
         if (a.compareTo(b) <= 0) {
@@ -41,13 +48,23 @@ public class Flow {
         }
     }
 
-    public List<byte[]> getPayloads() { return payloads; }
-    public String getKey()            { return key; }
-    public Protocol getProtocol()     { return protocol; }
-    public String getSrcIp()          { return srcIp; }
-    public int getSrcPort()           { return srcPort; }
-    public String getDstIp()          { return dstIp; }
-    public int getDstPort()           { return dstPort; }
+    /** Mark this flow as TCP-reassembled with the given framing method */
+    public void setReassemblyInfo(String method, int totalStreamBytes) {
+        this.reassemblyInfo = method;
+        this.streamBytes = totalStreamBytes;
+    }
+
+    public String getReassemblyInfo()  { return reassemblyInfo; }
+    public int getStreamBytes()        { return streamBytes; }
+    public boolean isReassembled()     { return reassemblyInfo != null; }
+
+    public List<byte[]> getPayloads()  { return payloads; }
+    public String getKey()             { return key; }
+    public Protocol getProtocol()      { return protocol; }
+    public String getSrcIp()           { return srcIp; }
+    public int getSrcPort()            { return srcPort; }
+    public String getDstIp()           { return dstIp; }
+    public int getDstPort()            { return dstPort; }
 
     public int totalBytes() {
         return payloads.stream().mapToInt(p -> p.length).sum();
@@ -57,7 +74,8 @@ public class Flow {
 
     @Override
     public String toString() {
-        return String.format("%-6s %-45s pkts=%d bytes=%d",
+        String base = String.format("%-6s %-45s pkts=%d bytes=%d",
                 protocol, key, messageCount(), totalBytes());
+        return base;
     }
 }

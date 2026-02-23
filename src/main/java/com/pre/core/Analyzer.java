@@ -32,6 +32,12 @@ public class Analyzer {
         List<FieldCandidate> fields = inferFields(messages, boundary);
         List<String> grammar = inferGrammar(messages, fields);
 
+        // ── Per-type sub-analysis ────────────────────────────────────────────
+        // After finding the common header, group messages by type and analyze
+        // each group's payload independently. This reveals type-specific
+        // structure (e.g. BEACON has uptime+OS, COMMAND has cmd_code+args).
+        Map<Long, AnalysisResult.TypeAnalysis> perType = analyzePerType(messages, fields, boundary);
+
         return new AnalysisResult(
                 flow.getKey(),
                 messages.size(),
@@ -41,8 +47,94 @@ public class Analyzer {
                 boundary,
                 fields,
                 grammar,
-                messages
+                messages,
+                perType
         );
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Per-type sub-analysis
+    // ────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Group messages by their type field value, then infer payload fields
+     * for each group independently.
+     *
+     * The "payload" starts after the last field in the common header.
+     * For each type group with ≥ 3 messages, we create sub-messages
+     * (byte arrays starting at payloadOffset) and run inferFields on them.
+     * This discovers type-specific structure that gets blurred when all
+     * messages are analyzed together.
+     */
+    private static Map<Long, AnalysisResult.TypeAnalysis> analyzePerType(
+            List<byte[]> messages, List<FieldCandidate> fields, BoundaryResult boundary) {
+
+        Map<Long, AnalysisResult.TypeAnalysis> result = new LinkedHashMap<>();
+
+        // Find the type discriminator (first enum field)
+        Optional<FieldCandidate> typeField = fields.stream()
+                .filter(f -> f.label().contains("enum"))
+                .findFirst();
+        if (typeField.isEmpty()) return result;
+
+        FieldCandidate tf = typeField.get();
+
+        // Payload starts after the last common header field
+        int payloadOffset = fields.stream()
+                .mapToInt(f -> f.offset() + f.width())
+                .max().orElse(0);
+
+        // Group messages by type
+        Map<Long, List<byte[]>> groups = new LinkedHashMap<>();
+        for (byte[] msg : messages) {
+            if (msg.length >= tf.offset() + tf.width()) {
+                long typeVal = readUint(msg, tf.offset(), tf.width(), true);
+                groups.computeIfAbsent(typeVal, k -> new ArrayList<>()).add(msg);
+            }
+        }
+
+        // Analyze each group
+        for (var entry : groups.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey()).toList()) {
+            long typeVal = entry.getKey();
+            List<byte[]> groupMsgs = entry.getValue();
+
+            if (groupMsgs.size() < 3) continue;
+
+            // Extract sub-payloads starting at payloadOffset
+            List<byte[]> subPayloads = groupMsgs.stream()
+                    .filter(m -> m.length > payloadOffset)
+                    .map(m -> Arrays.copyOfRange(m, payloadOffset, m.length))
+                    .collect(Collectors.toList());
+
+            if (subPayloads.isEmpty()) continue;
+
+            int[] subSizes = subPayloads.stream().mapToInt(m -> m.length).toArray();
+            Arrays.sort(subSizes);
+
+            // Run field inference on the sub-payloads
+            // Use a null boundary since these are payload fragments, not full messages
+            List<FieldCandidate> payloadFields = inferFields(subPayloads, null);
+
+            // Rebase offsets: add payloadOffset so they refer to the original message
+            List<FieldCandidate> rebasedFields = payloadFields.stream()
+                    .map(f -> new FieldCandidate(
+                            f.offset() + payloadOffset,
+                            f.width(), f.label(), f.confidence(),
+                            f.typeHint(), f.observedValues(), f.entropy()))
+                    .collect(Collectors.toList());
+
+            result.put(typeVal, new AnalysisResult.TypeAnalysis(
+                    typeVal,
+                    groupMsgs.size(),
+                    payloadOffset,
+                    rebasedFields,
+                    subSizes[0],
+                    subSizes[subSizes.length - 1]
+            ));
+        }
+
+        return result;
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -194,87 +286,31 @@ public class Analyzer {
 
     public static List<FieldCandidate> inferFields(List<byte[]> messages, BoundaryResult boundary) {
         if (messages.isEmpty()) return List.of();
-        int minLen = minLen(messages);
+
+        // ── FIX E: Adaptive analysis length ─────────────────────────────
+        // When a protocol has KEEPALIVE or other tiny messages alongside
+        // normal-sized DATA messages, strict minLen truncates analysis to
+        // the keepalive size (e.g. 4 bytes), missing all fields in the
+        // other 90%+ of messages.
+        //
+        // Strategy: find the analysis length that covers ≥80% of messages
+        // while skipping outlier clusters of tiny messages.  We walk the
+        // sorted sizes from the bottom and jump past any "gap" where a
+        // small cluster of runts sits far below the bulk of messages.
+        int analysisLen = adaptiveMinLen(messages);
+
         List<FieldCandidate> fields = new ArrayList<>();
         int offset = 0;
 
-        while (offset < minLen) {
-            List<FieldCandidate> atOffset = new ArrayList<>();
-            for (int width : new int[]{4, 2, 1}) {
-                if (offset + width > minLen) continue;
-                double ent = columnEntropy(messages, offset, width);
-                atOffset.add(classifyField(messages, offset, width, ent, boundary));
-            }
-            if (atOffset.isEmpty()) break;
-
-            // Prefer semantic types over bare constants of narrower width
-            FieldCandidate best = atOffset.stream()
-                    .filter(f -> SEMANTIC_TYPES.contains(f.typeHint()))
-                    .max(Comparator.comparingDouble(f -> f.width() * 10 + f.confidence()))
-                    .orElseGet(() -> atOffset.stream()
-                            .max(Comparator.comparingDouble(FieldCandidate::confidence))
-                            .orElseThrow());
+        while (offset < analysisLen) {
+            FieldCandidate best = selectBestField(messages, offset, analysisLen, boundary);
+            if (best == null) break;
 
             // ── 4B → 2B+2B split heuristic ─────────────────────────────────
-            // If we picked a 4B field, check whether its two 2B halves behave
-            // as independent fields. Three tests:
-            //   (a) Entropy mismatch: halves have very different entropy
-            //   (b) Independence: the halves vary independently — the number
-            //       of distinct 4B values is close to the product of the
-            //       distinct counts of each 2B half, meaning they don't
-            //       co-vary. Truly combined fields (like a single 32-bit
-            //       counter) would have correlated halves.
-            //   (c) Value mismatch: both halves are near-constant but with
-            //       different values.
-            if (best.width() == 4 && offset + 4 <= minLen) {
-                double entropyHigh = columnEntropy(messages, offset, 2);
-                double entropyLow  = columnEntropy(messages, offset + 2, 2);
-
-                // Collect distinct value counts for the 4B whole and each 2B half
-                Set<String> unique4B = new HashSet<>();
-                Set<String> uniqueHi = new HashSet<>();
-                Set<String> uniqueLo = new HashSet<>();
-                for (byte[] msg : messages) {
-                    if (msg.length >= offset + 4) {
-                        unique4B.add(hexSlice(msg, offset, 4));
-                        uniqueHi.add(hexSlice(msg, offset, 2));
-                        uniqueLo.add(hexSlice(msg, offset + 2, 2));
-                    }
-                }
-
-                boolean shouldSplit = false;
-
-                // (a) Entropy mismatch — one half is structured, the other varies
-                if (Math.abs(entropyHigh - entropyLow) > 1.0) {
-                    shouldSplit = true;
-                }
-
-                // (b) Independence test — if the halves are separate fields,
-                //     the 4B distinct count ≈ |uniqueHi| × |uniqueLo|.
-                //     For a true single 4B field the 4B count would be much
-                //     less than the product (values are correlated).
-                //     We trigger if the 4B count is >= 70% of the product.
-                int product = uniqueHi.size() * uniqueLo.size();
-                if (product > 1 && unique4B.size() >= product * 0.70) {
-                    shouldSplit = true;
-                }
-
-                // (c) Value mismatch — both halves are low entropy but with
-                //     different constant values (e.g. flags=0x0100 + qdcount=0x0001)
-                if (!shouldSplit && entropyHigh < 0.3 && entropyLow < 0.3) {
-                    long hiSample = readUint(messages.get(0), offset, 2, true);
-                    long loSample = readUint(messages.get(0), offset + 2, 2, true);
-                    if (hiSample != loSample) {
-                        shouldSplit = true;
-                    }
-                }
-
-                if (shouldSplit) {
-                    // Re-classify each 2B half independently
-                    FieldCandidate halfHi = classifyField(messages, offset, 2, entropyHigh, boundary);
-                    FieldCandidate halfLo = classifyField(messages, offset + 2, 2, entropyLow, boundary);
-                    fields.add(halfHi);
-                    fields.add(halfLo);
+            if (best.width() == 4 && offset + 4 <= analysisLen) {
+                List<FieldCandidate> splitResult = trySplit4B(messages, offset, analysisLen, boundary);
+                if (splitResult != null) {
+                    fields.addAll(splitResult);
                     offset += 4;
                     continue;
                 }
@@ -285,16 +321,109 @@ public class Analyzer {
         }
 
         // ── Post-pass: merge 1B constant-zero fields with neighbors ────────
-        // In big-endian protocols, a uint16 field with values < 256 has a
-        // constant 0x00 high byte. The main loop classifies this as a 1B
-        // constant at 95% confidence, which then misaligns everything after.
-        // Fix: if a 1B field with value 0x00 is followed by another 1B or
-        // the start of the next field, and the merged 2B view yields a
-        // meaningful classification (enum, flags, or even a "better" constant),
-        // replace the pair with the merged 2B field.
-        fields = mergeConstantZeroBytes(fields, messages, boundary);
+        fields = mergeConstantZeroBytes(fields, messages, analysisLen, boundary);
 
         return fields;
+    }
+
+    /**
+     * Select the best field candidate at a given offset.
+     * Encapsulated so both the main loop and the merge re-inference share
+     * identical logic (including tie-breaking).
+     *
+     * FIX D: When multiple widths tie at the same confidence for enum
+     * classification, prefer the NARROWER width.  This prevents a 2B enum
+     * from absorbing an adjacent byte that belongs to a different field
+     * (e.g. 1B type + 1B session_id_hi both at 82% enum confidence).
+     */
+    private static FieldCandidate selectBestField(
+            List<byte[]> messages, int offset, int maxLen, BoundaryResult boundary) {
+
+        List<FieldCandidate> atOffset = new ArrayList<>();
+        for (int width : new int[]{4, 2, 1}) {
+            if (offset + width > maxLen) continue;
+            double ent = columnEntropy(messages, offset, width);
+            atOffset.add(classifyField(messages, offset, width, ent, boundary));
+        }
+        if (atOffset.isEmpty()) return null;
+
+        // First: prefer semantic types (ipv4, length, sequence, timestamp)
+        Optional<FieldCandidate> semantic = atOffset.stream()
+                .filter(f -> SEMANTIC_TYPES.contains(f.typeHint()))
+                .max(Comparator.comparingDouble(f -> f.width() * 10 + f.confidence()));
+        if (semantic.isPresent()) return semantic.get();
+
+        // Second: among remaining candidates, pick highest confidence.
+        // TIE-BREAKING (Fix D): when two widths have the same confidence
+        // (e.g. both enum at 0.82), prefer NARROWER width for enums,
+        // but WIDER width for constants/magic (merging constants is fine).
+        return atOffset.stream()
+                .max((a, b) -> {
+                    int confCmp = Double.compare(a.confidence(), b.confidence());
+                    if (confCmp != 0) return confCmp;
+                    // Same confidence — apply tie-breaking
+                    boolean aIsEnum = a.label().contains("enum");
+                    boolean bIsEnum = b.label().contains("enum");
+                    if (aIsEnum && bIsEnum) {
+                        // Prefer narrower for enums
+                        return Integer.compare(b.width(), a.width());
+                    }
+                    // Default: prefer wider (merging constants is fine)
+                    return Integer.compare(a.width(), b.width());
+                })
+                .orElseThrow();
+    }
+
+    /**
+     * Try splitting a 4B field into two 2B halves.
+     * Returns the two halves if split is warranted, null otherwise.
+     */
+    private static List<FieldCandidate> trySplit4B(
+            List<byte[]> messages, int offset, int maxLen, BoundaryResult boundary) {
+
+        if (offset + 4 > maxLen) return null;
+
+        double entropyHigh = columnEntropy(messages, offset, 2);
+        double entropyLow  = columnEntropy(messages, offset + 2, 2);
+
+        Set<String> unique4B = new HashSet<>();
+        Set<String> uniqueHi = new HashSet<>();
+        Set<String> uniqueLo = new HashSet<>();
+        for (byte[] msg : messages) {
+            if (msg.length >= offset + 4) {
+                unique4B.add(hexSlice(msg, offset, 4));
+                uniqueHi.add(hexSlice(msg, offset, 2));
+                uniqueLo.add(hexSlice(msg, offset + 2, 2));
+            }
+        }
+
+        boolean shouldSplit = false;
+
+        // (a) Entropy mismatch — one half is structured, the other varies
+        if (Math.abs(entropyHigh - entropyLow) > 1.0) {
+            shouldSplit = true;
+        }
+
+        // (b) Independence test
+        int product = uniqueHi.size() * uniqueLo.size();
+        if (product > 1 && unique4B.size() >= product * 0.70) {
+            shouldSplit = true;
+        }
+
+        // (c) Value mismatch — both halves are low entropy but different values
+        if (!shouldSplit && entropyHigh < 0.3 && entropyLow < 0.3) {
+            long hiSample = readUint(messages.get(0), offset, 2, true);
+            long loSample = readUint(messages.get(0), offset + 2, 2, true);
+            if (hiSample != loSample) {
+                shouldSplit = true;
+            }
+        }
+
+        if (!shouldSplit) return null;
+
+        FieldCandidate halfHi = classifyField(messages, offset, 2, entropyHigh, boundary);
+        FieldCandidate halfLo = classifyField(messages, offset + 2, 2, entropyLow, boundary);
+        return List.of(halfHi, halfLo);
     }
 
     /**
@@ -304,14 +433,14 @@ public class Analyzer {
      * a non-trivial constant).
      *
      * When a merge is accepted, all fields after the merge point are discarded
-     * and re-inferred from scratch at the corrected alignment. This ensures
-     * the alignment fix cascades properly through the rest of the header.
+     * and re-inferred from scratch at the corrected alignment using the full
+     * selectBestField + split logic.
      */
     private static List<FieldCandidate> mergeConstantZeroBytes(
-            List<FieldCandidate> fields, List<byte[]> messages, BoundaryResult boundary) {
+            List<FieldCandidate> fields, List<byte[]> messages,
+            int analysisLen, BoundaryResult boundary) {
 
         if (fields.size() < 2) return fields;
-        int minLen = minLen(messages);
 
         for (int i = 0; i < fields.size(); i++) {
             FieldCandidate current = fields.get(i);
@@ -325,7 +454,7 @@ public class Analyzer {
             }
 
             int mergedOffset = current.offset();
-            if (mergedOffset + 2 > minLen) continue;
+            if (mergedOffset + 2 > analysisLen) continue;
 
             // Try the 2B classification at this offset
             double mergedEntropy = columnEntropy(messages, mergedOffset, 2);
@@ -348,28 +477,26 @@ public class Analyzer {
             result.add(merged);
 
             int resumeOffset = mergedOffset + 2;
-            while (resumeOffset < minLen) {
-                List<FieldCandidate> atOffset = new ArrayList<>();
-                for (int width : new int[]{4, 2, 1}) {
-                    if (resumeOffset + width > minLen) continue;
-                    double ent = columnEntropy(messages, resumeOffset, width);
-                    atOffset.add(classifyField(messages, resumeOffset, width, ent, boundary));
-                }
-                if (atOffset.isEmpty()) break;
+            while (resumeOffset < analysisLen) {
+                FieldCandidate best = selectBestField(messages, resumeOffset, analysisLen, boundary);
+                if (best == null) break;
 
-                FieldCandidate best = atOffset.stream()
-                        .filter(f -> SEMANTIC_TYPES.contains(f.typeHint()))
-                        .max(Comparator.comparingDouble(f -> f.width() * 10 + f.confidence()))
-                        .orElseGet(() -> atOffset.stream()
-                                .max(Comparator.comparingDouble(FieldCandidate::confidence))
-                                .orElseThrow());
+                // Apply split heuristic here too
+                if (best.width() == 4 && resumeOffset + 4 <= analysisLen) {
+                    List<FieldCandidate> splitResult = trySplit4B(messages, resumeOffset, analysisLen, boundary);
+                    if (splitResult != null) {
+                        result.addAll(splitResult);
+                        resumeOffset += 4;
+                        continue;
+                    }
+                }
 
                 result.add(best);
                 resumeOffset += best.width();
             }
 
             // Recurse: there might be another 1B zero in the re-inferred tail
-            return mergeConstantZeroBytes(result, messages, boundary);
+            return mergeConstantZeroBytes(result, messages, analysisLen, boundary);
         }
 
         // No merges found — return as-is
@@ -379,28 +506,14 @@ public class Analyzer {
     /**
      * Detect whether a set of 4-byte field samples looks like text or
      * DNS-style length-prefixed label data rather than binary numeric data.
-     *
-     * DNS wire-format names use length-prefix bytes (0x01-0x3F) followed by
-     * printable ASCII label characters. A 4-byte window sliding over this
-     * will contain a mix of small control bytes and ASCII letters — which
-     * can fool both IPv4 and timestamp classifiers.
-     *
-     * We classify each byte as:
-     *   - printable ASCII (0x20-0x7E)
-     *   - small label-length prefix (0x01-0x1F) — common in DNS/TLV encodings
-     *   - null terminator (0x00) — end of DNS name, end of C-string
-     *
-     * If ≥80% of samples have ALL 4 bytes in this "text-or-label" set,
-     * the field is almost certainly not a numeric value like an IP or timestamp.
      */
     private static boolean looksLikeTextOrLabels(List<byte[]> rawVals) {
         long textLike = rawVals.stream().filter(rv -> {
             for (byte b : rv) {
                 int v = b & 0xFF;
-                // Printable ASCII, small length-prefix (DNS/TLV), or null terminator
-                boolean isTextOrLabel = (v >= 0x20 && v <= 0x7E) // printable ASCII
-                        || (v >= 0x01 && v <= 0x3F)               // DNS label length / small TLV
-                        || (v == 0x00);                            // null terminator
+                boolean isTextOrLabel = (v >= 0x20 && v <= 0x7E)
+                        || (v >= 0x01 && v <= 0x3F)
+                        || (v == 0x00);
                 if (!isTextOrLabel) return false;
             }
             return true;
@@ -411,10 +524,16 @@ public class Analyzer {
     private static FieldCandidate classifyField(
             List<byte[]> messages, int offset, int width, double entropy, BoundaryResult boundary) {
 
+        // Only consider messages long enough to contain this field
         List<byte[]> rawVals = messages.stream()
                 .filter(m -> m.length >= offset + width)
                 .map(m -> Arrays.copyOfRange(m, offset, offset + width))
                 .collect(Collectors.toList());
+
+        if (rawVals.isEmpty()) {
+            return new FieldCandidate(offset, width, "unknown", 0.10,
+                    "bytes[" + width + "]", List.of(), entropy);
+        }
 
         Set<String> unique = rawVals.stream().map(Analyzer::toHex).collect(Collectors.toSet());
         int uniqueCount = unique.size();
@@ -429,6 +548,24 @@ public class Analyzer {
                     "bytes[" + width + "]", List.of(toHex(rawVals.get(0))), entropy);
         }
 
+        // ── FIX F: Length field from boundary detection ─────────────────────
+        // If the boundary detector already identified a length prefix at this
+        // exact offset and width, trust that result. It validated against
+        // actual message sizes with high confidence. This catches protocols
+        // like Modbus where the length field covers only a subset of the
+        // message (not the full size or simple remainder).
+        if (boundary != null
+                && boundary.strategy() == BoundaryResult.Strategy.LENGTH_PREFIX
+                && boundary.lengthFieldOffset() != null
+                && boundary.lengthFieldOffset() == offset
+                && boundary.lengthFieldWidth() != null
+                && boundary.lengthFieldWidth() == width) {
+            return new FieldCandidate(offset, width, "length", 0.90,
+                    "uint" + (width * 8) + "_le",
+                    intVals.stream().limit(6).map(v -> (Object) v).collect(Collectors.toList()),
+                    entropy);
+        }
+
         // ── Enum (low cardinality) ─────────────────────────────────────────
         if (uniqueCount <= 8 && rawVals.size() >= 5) {
             List<Object> vals = intVals.stream().distinct().sorted().limit(8)
@@ -438,9 +575,17 @@ public class Analyzer {
         }
 
         // ── IPv4 address ───────────────────────────────────────────────────
-        // Require: 4 bytes, high entropy, field varies across messages,
-        // and bytes don't look like text or DNS label encoding.
-        if (width == 4 && entropy > 2.0 && uniqueCount > 1 && !looksLikeTextOrLabels(rawVals)) {
+        // Why entropy < 3.8?  Real IP fields have moderate variety (a few
+        // servers/clients, subnet structure) giving H ≈ 1.5–3.5.  Random
+        // data (transaction IDs, encrypted payloads, MACs) has H > 4.0.
+        // Without the ceiling, ~87% of random 4-byte values pass the basic
+        // validity check (a>=1, a<224, d!=0) causing rampant false positives.
+        //
+        // Evidence from 12-pcap batch test: every confirmed false positive
+        // had H >= 3.91; every plausible true IP had H < 3.5.  The 3.8
+        // threshold provides a clean separation with safety margin.
+        if (width == 4 && entropy > 2.0 && entropy < 3.8
+                && uniqueCount > 1 && !looksLikeTextOrLabels(rawVals)) {
             long ipLike = rawVals.stream().filter(rv -> {
                 int a = rv[0] & 0xFF, b = rv[1] & 0xFF, c = rv[2] & 0xFF, d = rv[3] & 0xFF;
                 return a >= 1 && a < 224 && d != 0 && !(a == 0 && b == 0 && c == 0 && d == 0);
@@ -491,10 +636,6 @@ public class Analyzer {
         }
 
         // ── Unix timestamp (4B in plausible range) ─────────────────────────
-        // Guard: reject if bytes look like text or DNS label encoding.
-        // ASCII chars in the 0x60-0x7A range (lowercase letters) produce
-        // uint32 values in the 1.6–2.0 billion range which overlaps the
-        // current Unix epoch — e.g. "goog" = 0x676f6f67 ≈ Dec 2024.
         if (width == 4 && !looksLikeTextOrLabels(rawVals)) {
             long tsLike = intVals.stream()
                     .filter(v -> v > 1_000_000_000L && v < 2_000_000_000L).count();
@@ -595,6 +736,59 @@ public class Analyzer {
 
     private static int minLen(List<byte[]> messages) {
         return messages.stream().mapToInt(m -> m.length).min().orElse(0);
+    }
+
+    /**
+     * Compute the analysis length — the offset up to which we infer fields.
+     *
+     * Normally this is the minimum message length (every message must contain
+     * the field).  But when a protocol mixes tiny control messages (KEEPALIVE,
+     * ACK) with normal-sized data messages, the strict minimum truncates
+     * analysis to just a few bytes.
+     *
+     * Algorithm:
+     *   1. Sort message sizes ascending.
+     *   2. Walk from the bottom.  If there's a "size gap" — a jump where
+     *      the next message is more than 3× the current one — and the
+     *      messages below the gap represent ≤ 20% of the total, skip
+     *      past them and use the size above the gap.
+     *   3. This covers fields present in ≥80% of messages.
+     *   4. columnEntropy/classifyField already filter by msg.length >=
+     *      offset+width, so short messages are simply skipped for fields
+     *      beyond their length.
+     *
+     * Examples:
+     *   [4,4,4,4,4,64,64,64,...,150]  → gap at 4→64 (3× jump), 5/50=10%
+     *                                    below → analysisLen = 64
+     *   [48,48,48,50,50,50]           → no gap → analysisLen = 48 (strict min)
+     *   [20,20,100,100,100,100]       → gap at 20→100, 2/6=33% below
+     *                                    → 33% > 20% → keep 20 (too many to skip)
+     */
+    private static int adaptiveMinLen(List<byte[]> messages) {
+        int[] sizes = messages.stream().mapToInt(m -> m.length).sorted().toArray();
+        if (sizes.length == 0) return 0;
+
+        int n = sizes.length;
+        // Walk from bottom looking for a gap
+        for (int i = 0; i < n - 1; i++) {
+            int current = sizes[i];
+            int next = sizes[i + 1];
+
+            // Detect a significant gap: next is more than 3× current size,
+            // AND the gap is at least 8 bytes wide (not a trivial +1 difference)
+            if (next > current * 3 && (next - current) >= 8) {
+                int belowCount = i + 1;  // messages at or below the gap
+                double belowFraction = (double) belowCount / n;
+
+                // Only skip if the small messages are a minority (≤ 20%)
+                if (belowFraction <= 0.20) {
+                    return next;  // use the first "normal" size
+                }
+            }
+        }
+
+        // No significant gap found — use strict minimum
+        return sizes[0];
     }
 
     public static long readUint(byte[] data, int offset, int width, boolean bigEndian) {
